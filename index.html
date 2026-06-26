@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sales Call Summary Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{
+      --primary:#0078D4; /* Microsoft blue */
+      --accent:#005A9E;
+      --bg:#F3F2F1;
+      --surface:#FFFFFF;
+      --text:#201F1E;
+      --muted:#605E5C;
+      --success:#107C10;
+      --divider:#C8C6C4;
+    }
+    body{background:var(--bg);color:var(--text);}    
+    .card{background:var(--surface);border:1px solid var(--divider);}    
+  </style>
+</head>
+<body class="min-h-screen p-6 font-sans">
+  <div class="max-w-6xl mx-auto">
+    <header class="mb-6">
+      <h1 class="text-2xl font-semibold">Sales Call Summary Generator</h1>
+      <p class="text-sm text-muted-600 mt-1" style="color:var(--muted)">Turn transcripts into CRM-ready summaries in seconds.</p>
+    </header>
+
+    <main class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Input Panel -->
+      <section class="card p-5 rounded-lg shadow-sm">
+        <h2 class="font-medium mb-2">Call Transcript</h2>
+        <div class="mb-3 text-sm" style="color:var(--muted)">Paste the call transcript or upload a text file. Transcripts are processed in-session only and never stored.</div>
+
+        <div class="mb-3">
+          <textarea id="transcript" rows="14" class="w-full p-3 border rounded-md" placeholder="Paste transcript here..."></textarea>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button id="generateBtn" class="px-4 py-2 rounded-md text-white" style="background:var(--primary)">Generate summary</button>
+          <button id="resetBtn" class="px-3 py-2 rounded-md border" style="border-color:var(--divider)">Reset input</button>
+          <label class="ml-auto flex items-center gap-2 text-sm text-muted-600" style="color:var(--muted)">
+            <input id="fileInput" type="file" accept=".txt" class="hidden" />
+            <button id="uploadBtn" class="px-3 py-1 rounded bg-white border" style="border-color:var(--divider)">Upload transcript</button>
+            <span class="text-xs">(.txt)</span>
+          </label>
+        </div>
+
+        <div id="privacy" class="mt-3 text-xs" style="color:var(--muted)">Transcripts are processed in-session only and never stored.</div>
+
+        <div id="error" class="mt-3 text-sm text-red-600" style="display:none"></div>
+      </section>
+
+      <!-- Output Panel -->
+      <section id="outputPanel" class="hidden p-5 rounded-lg">
+        <div id="summaryCard" class="card p-4 rounded mb-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-medium">Summary</h3>
+              <p id="summaryText" class="text-sm text-muted-600" style="color:var(--muted)"></p>
+            </div>
+            <div id="spinnerTop" style="display:none">⏳</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4">
+          <div id="card1" class="card p-4 rounded flex flex-col">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-2"><span>📋</span><h4 class="font-medium">Key Discussion Points</h4></div>
+              <button class="copyBtn px-2 py-1 text-sm rounded border" data-target="key_points">Copy</button>
+            </div>
+            <ul id="keyPointsList" class="list-disc pl-5 text-sm text-muted-600" style="color:var(--muted)"></ul>
+          </div>
+
+          <div id="card2" class="card p-4 rounded flex flex-col">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-2"><span>🎯</span><h4 class="font-medium">Customer Needs</h4></div>
+              <button class="copyBtn px-2 py-1 text-sm rounded border" data-target="customer_needs">Copy</button>
+            </div>
+            <ul id="customerNeedsList" class="list-disc pl-5 text-sm text-muted-600" style="color:var(--muted)"></ul>
+          </div>
+
+          <div id="card3" class="card p-4 rounded flex flex-col">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-2"><span>✅</span><h4 class="font-medium">Next Actions</h4></div>
+              <button class="copyBtn px-2 py-1 text-sm rounded border" data-target="action_items">Copy</button>
+            </div>
+            <ul id="actionItemsList" class="list-disc pl-5 text-sm text-muted-600" style="color:var(--muted)"></ul>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="loadingOverlay" class="fixed inset-0 flex items-center justify-center bg-black/30" style="display:none">
+      <div class="bg-white p-6 rounded shadow text-center">
+        <div id="spinnerLarge" class="mb-3">⏳ Processing…</div>
+        <div class="text-sm text-muted-600" style="color:var(--muted)">This demo calls the Anthropic API. For production, run API calls on a server-side proxy.</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+// Placeholder transcript pulled from test case (trimmed)
+const SAMPLE_TRANSCRIPT = `Sarah: Hi, is this Mike Reyes?
+Mike: Yeah, this is Mike.
+Sarah: Hey Mike, this is Sarah Chen calling from NorthBridge IT Solutions. I know I'm catching you out of the blue — do you have about two minutes, or is now a bad time?
+Mike: Uh, I've got a few minutes, what's this about?
+... (see test case for full transcript)`;
+
+const transcriptEl = document.getElementById('transcript');
+const fileInput = document.getElementById('fileInput');
+const uploadBtn = document.getElementById('uploadBtn');
+const generateBtn = document.getElementById('generateBtn');
+const resetBtn = document.getElementById('resetBtn');
+const outputPanel = document.getElementById('outputPanel');
+const errorEl = document.getElementById('error');
+const loadingOverlay = document.getElementById('loadingOverlay');
+
+// Pre-fill sample transcript for demo
+transcriptEl.value = SAMPLE_TRANSCRIPT;
+
+uploadBtn.addEventListener('click', ()=> fileInput.click());
+fileInput.addEventListener('change', handleFile);
+resetBtn.addEventListener('click', ()=>{ transcriptEl.value = ''; outputPanel.classList.add('hidden'); hideError(); });
+
+document.querySelectorAll('.copyBtn').forEach(btn => btn.addEventListener('click', handleCopy));
+
+generateBtn.addEventListener('click', handleGenerate);
+
+function handleFile(e){
+  const f = e.target.files && e.target.files[0];
+  if(!f) return;
+  if(!f.name.endsWith('.txt')){ showError('Only .txt files are supported.'); return; }
+  const reader = new FileReader();
+  reader.onload = ()=>{ transcriptEl.value = reader.result; };
+  reader.readAsText(f);
+}
+
+function showError(msg){ errorEl.textContent = msg; errorEl.style.display = 'block'; }
+function hideError(){ errorEl.style.display = 'none'; errorEl.textContent = ''; }
+
+function handleCopy(e){
+  const target = e.currentTarget.dataset.target;
+  let items = [];
+  if(target === 'key_points') items = Array.from(document.querySelectorAll('#keyPointsList li')).map(li=>li.textContent);
+  if(target === 'customer_needs') items = Array.from(document.querySelectorAll('#customerNeedsList li')).map(li=>li.textContent);
+  if(target === 'action_items') items = Array.from(document.querySelectorAll('#actionItemsList li')).map(li=>li.textContent);
+  navigator.clipboard.writeText(items.join('\n'))
+    .then(()=> e.currentTarget.textContent = 'Copied')
+    .catch(()=> showError('Copy failed'));
+  setTimeout(()=> e.currentTarget.textContent = 'Copy', 1500);
+}
+
+async function handleGenerate(){
+  hideError();
+  const transcript = transcriptEl.value.trim();
+  if(!transcript){ showError('Please provide a transcript.'); return; }
+
+  // Ask user for API key at runtime (do not persist)
+  let API_KEY = window.ANTHROPIC_API_KEY; // optional global
+  if(!API_KEY){ API_KEY = prompt('Enter Anthropic API key for demo (will not be stored):'); }
+  if(!API_KEY){ showError('API key required to call Anthropic API.'); return; }
+
+  // UI state
+  generateBtn.disabled = true; loadingOverlay.style.display = 'flex';
+
+  const systemPrompt = `You are an assistant that must produce a strict JSON summary of a sales call transcript for CRM ingestion. Output ONLY valid JSON (no surrounding explanation). Requirements:
+- Return keys: "summary", "key_points", "customer_needs", "action_items", "sentiment", "follow_up_needed", and optionally "caller_name", "call_date", "product_recommendation", "phone_number".
+- "summary": exactly one concise sentence (1-2 short sentences maximum).
+- "key_points", "customer_needs", "action_items": arrays of 2–5 short string bullets each. Keep each string ≤ 120 characters.
+- "sentiment": one of "positive", "neutral", "negative".
+- "follow_up_needed": boolean.
+- REDACT or OMIT client names, personal emails, and full phone numbers in the returned text. Use placeholders like "[email redacted]".
+- Do NOT invent deadlines, owners, or commitments. If missing, set related fields to null or use follow-up wording.
+- Respond with JSON only, parseable by JSON.parse().`;
+
+  const userPrompt = `Transcript:\n${transcript}`;
+
+  try{
+    // Anthropic HTTP API: /v1/complete (this example uses completion-style prompt)
+    const payload = {
+      model: 'claude-sonnet-4-6',
+      prompt: systemPrompt + "\n\n" + userPrompt + "\n\nRespond with JSON only.",
+      max_tokens: 800,
+      temperature: 0
+    };
+
+    const res = await fetch('https://api.anthropic.com/v1/complete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': API_KEY
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if(!res.ok){
+      const text = await res.text();
+      throw new Error(`API error: ${res.status} ${text}`);
+    }
+
+    const data = await res.json();
+    // Anthropic may return text in `completion` or `completion`-like fields; try common fields
+    let raw = data.completion || data.output || data.text || JSON.stringify(data);
+
+    // If API returns object with `completion`, use that; otherwise try to extract JSON substring
+    if(typeof raw !== 'string') raw = JSON.stringify(raw);
+
+    const jsonText = extractJson(raw);
+    if(!jsonText) throw new Error('No JSON found in model response');
+
+    const parsed = JSON.parse(jsonText);
+    renderOutput(parsed);
+
+  }catch(err){
+    showError(err.message || 'Unknown error');
+  }finally{
+    generateBtn.disabled = false; loadingOverlay.style.display = 'none';
+    outputPanel.scrollIntoView({behavior:'smooth'});
+  }
+}
+
+function extractJson(text){
+  const first = text.indexOf('{');
+  const last = text.lastIndexOf('}');
+  if(first === -1 || last === -1) return null;
+  return text.substring(first, last+1);
+}
+
+function renderOutput(obj){
+  outputPanel.classList.remove('hidden');
+  document.getElementById('summaryText').textContent = obj.summary || '';
+
+  populateList('keyPointsList', obj.key_points || obj.key_points || obj.key_points || obj.key_points || obj.key_points || obj.key_points || obj.key_points || obj.key_points || [] , );
+  populateList('customerNeedsList', obj.customer_needs || obj.customer_needs || obj.customer_needs || obj.customer_needs || obj.customer_needs || []);
+  populateList('actionItemsList', obj.action_items || obj.action_items || obj.action_items || []);
+}
+
+function populateList(elId, items){
+  const el = document.getElementById(elId);
+  el.innerHTML = '';
+  if(!items || !items.length){ const li = document.createElement('li'); li.textContent = '(none)'; el.appendChild(li); return; }
+  items.forEach(i=>{ const li = document.createElement('li'); li.textContent = i; el.appendChild(li); });
+}
+
+</script>
+</body>
+</html>
