@@ -1,18 +1,52 @@
 # Sales Call Summary Generator
 
-This repository contains a React frontend and FastAPI backend for a Sales Call Summary Generator.
+This repository contains a React + Vite frontend and a FastAPI backend for generating structured sales call summaries from transcript text.
 
 ## Project structure
 
-- `frontend/` — React + Vite frontend application
-- `backend/` — FastAPI backend service that summarizes transcripts using an AI model
-- `resources/` — design and documentation artifacts
+- `frontend/` — React/Vite application for transcript entry and summary display
+- `backend/` — FastAPI service that accepts transcript input and returns structured summary data
+- `resources/` — supporting documentation, including user flow, checklist, and UI tone guidance
 
-## Frontend
+## User flow
 
-The frontend lives in `frontend/` and is built with React and Vite.
+Users paste or upload a call transcript, then the frontend sends it to the backend. The backend processes the text, applies AI summarization, and returns:
 
-Quick start:
+- a concise summary
+- key discussion points
+- customer needs
+- next actions
+
+```mermaid
+flowchart TD
+  A[Start] --> B[Upload/Paste Transcript Text File]
+  B --> C{Transcript contains metadata?}
+  C -->|Yes| C1[Extract caller name, call date, phone number, product recommendation if present]
+  C -->|No| C2[Proceed with transcript content only]
+  C1 --> D[Send transcript + extracted metadata to AI summarization engine]
+  C2 --> D
+  D --> E[Generate structured output]
+  E --> F[Very concise AI summary]
+  E --> G[Key Discussion Points]
+  E --> H[Customer Needs]
+  E --> I[Next Actions]
+  F --> J[Format as CRM-ready response]
+  G --> J
+  H --> J
+  I --> J
+  J --> K{Sensitive data present?}
+  K -->|Yes| K1[Redact or omit unnecessary private/confidential info]
+  K -->|No| L[Return final summary output]
+  K1 --> L
+  L --> M[Display summary to user]
+  M --> N[End]
+```
+
+For the full flow document, see `resources/sales_call_summary_flow.md`.
+
+## Getting started
+
+### Frontend
 
 ```bash
 cd frontend
@@ -20,26 +54,9 @@ npm install
 npm run dev
 ```
 
-Open the URL shown by Vite, usually `http://localhost:5173`.
+Open the Vite URL, usually `http://localhost:5173`.
 
-The frontend sends a transcript to the backend at:
-
-- default: `POST /transcripts/summarize`
-- override with `.env` using `VITE_API_URL`
-
-Request payload:
-
-```json
-{
-  "transcript": "..."
-}
-```
-
-## Backend
-
-The backend lives in `backend/` and is built with FastAPI.
-
-Quick start:
+### Backend
 
 ```bash
 cd backend
@@ -49,16 +66,14 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-The backend exposes:
+## API
 
-- `GET /health`
+### Endpoint
+
 - `POST /transcripts/summarize`
+- `GET /health`
 
-`POST /transcripts/summarize` accepts a transcript and returns a structured summary response. The backend uses `GEMINI_API_KEY` to connect to Google Gemini if configured.
-
-## API contract
-
-Request body:
+### Request body
 
 ```json
 {
@@ -66,10 +81,11 @@ Request body:
 }
 ```
 
-Response includes fields such as:
+### Response fields
 
 - `summary`
 - `key_points`
+- `customer_needs`
 - `action_items`
 - `sentiment`
 - `follow_up_needed`
@@ -79,6 +95,7 @@ Response includes fields such as:
 
 ## Notes
 
-- The frontend does not store API keys or call the AI provider directly.
-- Keep your provider credentials in the backend environment.
-- Use `VITE_API_URL` in `frontend/.env` to point the frontend to a deployed backend if needed.
+- The frontend sends transcript text to the backend; it does not call the AI provider directly.
+- Store API keys and provider credentials in the backend environment.
+- Use `VITE_API_URL` in `frontend/.env` to point the frontend to a deployed backend.
+- See `resources/sales_call_summary_ui_tone.md` for UI tone and copy guidance.
