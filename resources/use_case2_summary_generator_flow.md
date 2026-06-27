@@ -51,3 +51,22 @@ flowchart TD
 5. **Output**
    - The final output is CRM-ready and concise.
    - The user sees a summary that includes extracted metadata only if it was present in the transcript.
+
+   ## Problem Statement
+
+   - Context: Sales reps spend significant time writing inconsistent call notes after customer calls.
+   - Problem: Notes are time-consuming, vary in quality, and often miss actionable follow-ups, harming CRM data and deal velocity.
+   - Impact: Reduced rep productivity, missed follow-ups, inaccurate pipeline data, and lower win rates.
+
+   ## File Summary
+
+   - File: `resources/use_case2_summary_generator_flow.md`
+   - Purpose: Defines the end-to-end process for converting a call transcript into a CRM-ready summary while protecting sensitive data.
+   - Key steps:
+      - Input: paste or upload transcript (text file).
+      - Metadata extraction: detect and extract caller name, date, phone number, product recommendation when present.
+      - AI summarization: produce a very concise summary plus structured sections (Key Discussion Points, Customer Needs, Next Actions).
+      - Security filter: redact or omit sensitive information; never return raw transcript text.
+      - Output: return CRM-ready structured JSON and display a concise visual summary to the user.
+
+   Use this file as the implementation reference for developers, testers, and security reviewers.

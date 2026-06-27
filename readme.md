@@ -1,25 +1,84 @@
-# Sales Call Summary Generator — Frontend Demo
+# Sales Call Summary Generator
 
-This repository contains a single-file static frontend demo for the Sales Call Summary Generator: `index.html`.
+This repository contains a React frontend and FastAPI backend for a Sales Call Summary Generator.
 
-Quick start
-1. Open `index.html` in your browser (double-click or `File -> Open` in browser).
-2. The transcript area is pre-filled with a sample transcript from `testing/test_cases/sales_call_summary_test_case.md`.
-3. Click **Generate summary**. On first run the page will prompt for an Anthropic API key for demo purposes.
+## Project structure
 
-Notes and security
-- This demo calls the Anthropic API directly from the browser for convenience. This is insecure for production because API keys in browsers can be exposed.
-- For production, implement a server-side proxy that stores the Anthropic API key in environment variables and forwards requests from the frontend.
-- The demo does not persist transcript or output data; the API key entered at runtime is not stored by this page.
+- `frontend/` — React + Vite frontend application
+- `backend/` — FastAPI backend service that summarizes transcripts using an AI model
+- `resources/` — design and documentation artifacts
 
-Anthropic API
-- The page uses the `claude-sonnet-4-6` model and sends a system prompt instructing the model to return strict JSON only.
-- The model response is parsed for JSON and rendered into three CRM-ready cards.
+## Frontend
 
-Files
-- `index.html` — single-file frontend
-- `README.md` — this file
-- `testing/test_cases/sales_call_summary_test_case.md` — sample transcript used as placeholder
-- `resources/use_case2_summary_generator_ui_tone.md` — UI tone & color palette
+The frontend lives in `frontend/` and is built with React and Vite.
 
-If you want, I can update the frontend to call a local proxy endpoint instead of the Anthropic public endpoint, and provide a minimal Node/Express proxy server that safely stores the API key.
+Quick start:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open the URL shown by Vite, usually `http://localhost:5173`.
+
+The frontend sends a transcript to the backend at:
+
+- default: `POST /transcripts/summarize`
+- override with `.env` using `VITE_API_URL`
+
+Request payload:
+
+```json
+{
+  "transcript": "..."
+}
+```
+
+## Backend
+
+The backend lives in `backend/` and is built with FastAPI.
+
+Quick start:
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+The backend exposes:
+
+- `GET /health`
+- `POST /transcripts/summarize`
+
+`POST /transcripts/summarize` accepts a transcript and returns a structured summary response. The backend uses `GEMINI_API_KEY` to connect to Google Gemini if configured.
+
+## API contract
+
+Request body:
+
+```json
+{
+  "transcript": "Sales call transcript text..."
+}
+```
+
+Response includes fields such as:
+
+- `summary`
+- `key_points`
+- `action_items`
+- `sentiment`
+- `follow_up_needed`
+- `caller_name`
+- `phone_number`
+- `call_date`
+
+## Notes
+
+- The frontend does not store API keys or call the AI provider directly.
+- Keep your provider credentials in the backend environment.
+- Use `VITE_API_URL` in `frontend/.env` to point the frontend to a deployed backend if needed.
